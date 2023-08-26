@@ -1,16 +1,20 @@
-import { nanoid } from "nanoid";
 import * as CLONEX_ABI from "../abi/CloneX_ABI";
-import { ERC721_CONTRACT_ADDRESS } from "../constants";
+import { ERC721_CONTRACT_ADDRESS, MULTICALL_ADDRESS } from "../constants";
 import { ProcessorContext } from "../processor";
 import { EventData, TransferEventData } from "../types";
 import { EntityManager } from "../utils/entityManager";
 import { Transfer, User } from "../model";
-import { uniq } from "lodash";
+import { last, uniq } from "lodash";
+import { BlockContext } from "../abi/abi.support";
+import { Multicall } from "../abi/multicall";
+import axios from "axios";
 
 export class PrefetchFactory {
+  readonly blockCtx: BlockContext = { _chain: this.ctx._chain, block: last(this.ctx.blocks)!.header };
   eventsData: ReadonlyArray<EventData> = [];
 
   constructor(private ctx: ProcessorContext, private em: EntityManager) {}
+
   private getEventData<T extends EventData["type"]>(type: T) {
     return this.eventsData.filter((x) => x.type === type) as Extract<EventData, { type: T }>[];
   }
@@ -18,7 +22,7 @@ export class PrefetchFactory {
   async prefetch(): Promise<void> {
     this.eventsData = await this.processEventLogs();
     if (this.eventsData.length === 0) return;
-    await Promise.all([this.prefetchTransfers(), this.prefetchUsers()]);
+    await Promise.all([this.prefetchTransfers(), this.prefetchUsers(), this.multicall()]);
   }
 
   // processing events data.
@@ -33,6 +37,10 @@ export class PrefetchFactory {
           // match logid and get the data of the transfer event.
           if (log.topics[0].toLowerCase() === CLONEX_ABI.events.Transfer.topic.toLowerCase()) {
             const { from, to, tokenId } = CLONEX_ABI.events.Transfer.decode(log);
+
+            // const contract = new CLONEX_ABI.Contract(this.ctx, block.header, ERC721_CONTRACT_ADDRESS);
+            // const metaData = await contract.tokenURI(tokenId)
+            // console.log({ contract });
             const eventResponse: TransferEventData = {
               type: "Transfer",
               item: {
@@ -97,7 +105,7 @@ export class PrefetchFactory {
     // getting user ids from the event
     const userIds = uniq(
       this.eventsData.flatMap((data) => {
-        return data.item.to;
+        return [data.item.from, data.item.to];
       })
     );
 
@@ -114,9 +122,32 @@ export class PrefetchFactory {
       const newUser = new User({
         id,
         balance: 0n,
-        ownedToken: [],
       });
       this.em.add(newUser);
     }
+  }
+
+  async multicall(): Promise<void> {
+    const tokenIds = this.getEventData("Transfer").map((x) => x.item.tokenId);
+
+    // getting the data using multicall to improve performance
+    let lastBatchBlockHeader = this.ctx.blocks[this.ctx.blocks.length - 1].header;
+    let contract = new Multicall(this.ctx, lastBatchBlockHeader, MULTICALL_ADDRESS);
+
+    let tokenURIs = await contract.aggregate(
+      CLONEX_ABI.functions.tokenURI,
+      ERC721_CONTRACT_ADDRESS,
+      tokenIds.map((id) => [id]),
+      50 // paginating to avoid RPC timeouts
+    );
+
+    // request to all the http urls and get the metadata.
+    // const metadata = await Promise.all(tokenURIs.map(async (url) => await axios.get(url))).then((data) =>
+    //   data.filter((x) => x)
+    // );
+
+    // for (let data of metadata) {
+    //   console.log(data.data);
+    // }
   }
 }

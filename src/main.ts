@@ -13,15 +13,15 @@ processor.run(new TypeormDatabase({ supportHotBlocks: true }), async (ctx) => {
 
   for (const data of factory.eventsData) {
     const transfer = em.get(Transfer, data.item.id, false);
-    let user = em.get(User, data.item.to, false);
+    let to = em.get(User, data.item.to, false);
+    let from = em.get(User, data.item.from, false);
 
-    if (user && transfer) {
-      user = new User({
-        ...user,
-        balance: user.balance + 1n,
-        ownedToken: [...user.ownedToken, Number(transfer.tokenId)],
-      });
-      em.add(user);
+    if (to && from && transfer) {
+      to.balance += 1n;
+      from.balance -= 1n;
+
+      em.add(from);
+      em.add(to);
     }
   }
 

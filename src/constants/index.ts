@@ -5,7 +5,8 @@ import { Archives, Range } from "../types";
 // Archives(Network) are datalakses from which all the data come.
 // setting up from which archive(Network) we need the data.
 // KnownArchivesEVM is the type in which all the supported archives from subsquid exist.
-export const NETWORK: KnownArchivesEVM | undefined = process.env.ARCHIVE as KnownArchivesEVM;
+export const NETWORK: KnownArchivesEVM | undefined = "eth-mainnet" as KnownArchivesEVM;
+export const MULTICALL_ADDRESS = "0xcA11bde05977b3631167028862bE2a173976CA11";
 
 const ETH_MAINNET = "eth-mainnet";
 const ETH_GOERLI = "goerli";
@@ -13,11 +14,11 @@ const ETH_GOERLI = "goerli";
 const DATASOURCES: Archives<DataSource> = {
   [ETH_MAINNET]: {
     archive: `https://v2.archive.subsquid.io/network/ethereum-mainnet`,
-    chain: "https://eth-mainnet.public.blastapi.io",
+    chain: "https://eth-mainnet.blastapi.io/34b74501-dba6-4774-bb89-06cc751687f0",
   },
   [ETH_GOERLI]: {
     archive: `https://v2.archive.subsquid.io/network/ethereum-goerli`,
-    chain: "https://eth-goerli.public.blastapi.io",
+    chain: "https://eth-goerli.blastapi.io/34b74501-dba6-4774-bb89-06cc751687f0",
   },
 };
 

@@ -1,5 +1,6 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_} from "typeorm"
 import * as marshal from "./marshal"
+import {NFT} from "./nft.model"
 
 @Entity_()
 export class User {
@@ -13,6 +14,6 @@ export class User {
     @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
     balance!: bigint
 
-    @Column_("int4", {array: true, nullable: false})
-    ownedToken!: (number)[]
+    @OneToMany_(() => NFT, e => e.owner)
+    ownedNFTs!: NFT[]
 }

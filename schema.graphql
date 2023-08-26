@@ -11,5 +11,19 @@ type Transfer @entity {
 type User @entity {
   id: ID!
   balance: BigInt!
-  ownedToken: [Int!]!
+  ownedNFTs: [NFT!]! @derivedFrom(field: "owner")
+}
+
+type NFT @entity {
+  id: ID!
+  name: String!
+  description: String!
+  attributes: [Attribute!]!
+  image: String!
+  owner: User!
+}
+
+type Attribute {
+  traitType: String!
+  value: String!
 }
